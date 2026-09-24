@@ -4,7 +4,8 @@ import { SignJWT, jwtVerify } from "jose";
 export const SESSION_COOKIE = "admin_session";
 export const SESSION_MAX_AGE = 60 * 60 * 24 * 7; // 7 วัน
 
-export type SessionPayload = { userId: number; username: string };
+// version ต้องตรงกับ AdminUser.sessionVersion (ตรวจใน requireAdmin)
+export type SessionPayload = { userId: number; username: string; version: number };
 
 function secretKey() {
   const secret = process.env.AUTH_SECRET;
@@ -15,7 +16,7 @@ function secretKey() {
 }
 
 export async function signSession(payload: SessionPayload): Promise<string> {
-  return new SignJWT({ username: payload.username })
+  return new SignJWT({ username: payload.username, ver: payload.version })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(String(payload.userId))
     .setIssuedAt()
@@ -28,8 +29,9 @@ export async function verifySession(token: string | undefined): Promise<SessionP
   try {
     const { payload } = await jwtVerify(token, secretKey(), { algorithms: ["HS256"] });
     const userId = Number(payload.sub);
-    if (!Number.isInteger(userId) || typeof payload.username !== "string") return null;
-    return { userId, username: payload.username };
+    const version = payload.ver;
+    if (!Number.isInteger(userId) || typeof payload.username !== "string" || !Number.isInteger(version)) return null;
+    return { userId, username: payload.username, version: version as number };
   } catch {
     return null;
   }

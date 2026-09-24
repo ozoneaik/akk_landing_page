@@ -59,5 +59,6 @@ npm run dev
 - ตั้ง `SITE_URL` เป็นโดเมนจริง (ใช้กับ SEO, sitemap)
 - ตั้ง `AUTH_SECRET` ใหม่ (`openssl rand -base64 32`) และใช้รหัสผ่านแอดมินที่เดายาก
 - ใช้ HTTPS (cookie ล็อกอินตั้งเป็น `secure` ใน production)
+- ถ้ารันหลัง reverse proxy (nginx, Caddy, Cloudflare) ให้ตั้ง `TRUST_PROXY="true"` เพื่อจำกัดการล็อกอินผิดต่อ IP ด้วย (ไม่ตั้ง = จำกัดต่อชื่อผู้ใช้อย่างเดียว)
 - รูปสินค้าที่อัปโหลดเก็บในฐานข้อมูล — ย้ายเซิร์ฟเวอร์/ย้ายฐานข้อมูลแล้วรูปไม่หาย
 - SQLite เหมาะกับเซิร์ฟเวอร์เครื่องเดียว (VPS) — ถ้าใช้ Vercel หรือ serverless ให้เปลี่ยนเป็น PostgreSQL

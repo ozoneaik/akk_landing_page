@@ -2,30 +2,50 @@ import "server-only";
 
 // จำกัดจำนวนครั้งที่ล็อกอินผิด (เก็บในหน่วยความจำ — เพียงพอสำหรับเซิร์ฟเวอร์เครื่องเดียว)
 const WINDOW_MS = 15 * 60 * 1000;
-const MAX_FAILURES = 5;
+const MAX_ENTRIES = 10_000; // กันหน่วยความจำโตไม่จำกัดเมื่อมีคนสุ่มชื่อผู้ใช้/IP
 
 const failures = new Map<string, { count: number; resetAt: number }>();
 
-export function isLocked(key: string): boolean {
+export type LimitKey = { key: string; max: number };
+
+function activeEntry(key: string, now: number) {
   const entry = failures.get(key);
-  if (!entry) return false;
-  if (Date.now() > entry.resetAt) {
+  if (entry && now > entry.resetAt) {
     failures.delete(key);
-    return false;
+    return undefined;
   }
-  return entry.count >= MAX_FAILURES;
+  return entry;
 }
 
-export function recordFailure(key: string) {
+function prune(now: number) {
+  for (const [key, entry] of failures) {
+    if (now > entry.resetAt) failures.delete(key);
+  }
+  // ยังเต็มอยู่ → ทิ้งรายการที่เก่าที่สุด (Map เรียงตามลำดับที่ใส่)
+  for (const key of failures.keys()) {
+    if (failures.size < MAX_ENTRIES) break;
+    failures.delete(key);
+  }
+}
+
+export function isLocked(keys: LimitKey[]): boolean {
   const now = Date.now();
-  const entry = failures.get(key);
-  if (!entry || now > entry.resetAt) {
-    failures.set(key, { count: 1, resetAt: now + WINDOW_MS });
-  } else {
-    entry.count += 1;
+  return keys.some(({ key, max }) => (activeEntry(key, now)?.count ?? 0) >= max);
+}
+
+export function recordFailure(keys: LimitKey[]) {
+  const now = Date.now();
+  for (const { key } of keys) {
+    const entry = activeEntry(key, now);
+    if (entry) {
+      entry.count += 1;
+    } else {
+      if (failures.size >= MAX_ENTRIES) prune(now);
+      failures.set(key, { count: 1, resetAt: now + WINDOW_MS });
+    }
   }
 }
 
-export function clearFailures(key: string) {
-  failures.delete(key);
+export function clearFailures(keys: LimitKey[]) {
+  for (const { key } of keys) failures.delete(key);
 }

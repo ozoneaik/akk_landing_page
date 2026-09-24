@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { createSession, requireAdmin } from "@/lib/auth";
 import { formValues, invalid, requiredText, type FormState } from "@/lib/admin/form";
 
 const siteSchema = z.object({
@@ -58,9 +58,11 @@ export async function changePassword(_prev: FormState, formData: FormData): Prom
     return { ok: false, message: "รหัสผ่านปัจจุบันไม่ถูกต้อง", errors: { currentPassword: ["รหัสผ่านปัจจุบันไม่ถูกต้อง"] } };
   }
 
-  await db.adminUser.update({
+  // เพิ่ม sessionVersion → ทุกเครื่องที่ล็อกอินค้างไว้ถูกออกจากระบบ แล้วออก session ใหม่ให้เครื่องนี้
+  const updated = await db.adminUser.update({
     where: { id: user.id },
-    data: { passwordHash: await bcrypt.hash(parsed.data.newPassword, 12) },
+    data: { passwordHash: await bcrypt.hash(parsed.data.newPassword, 12), sessionVersion: { increment: 1 } },
   });
-  return { ok: true, message: "เปลี่ยนรหัสผ่านเรียบร้อยแล้ว" };
+  await createSession(updated.id, updated.username, updated.sessionVersion);
+  return { ok: true, message: "เปลี่ยนรหัสผ่านเรียบร้อยแล้ว — เครื่องอื่นที่ล็อกอินค้างไว้จะถูกออกจากระบบ" };
 }

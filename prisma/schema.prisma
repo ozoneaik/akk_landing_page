@@ -77,6 +77,7 @@ model AdminUser {
   id           Int      @id @default(autoincrement())
   username     String   @unique
   passwordHash String
+  sessionVersion Int    @default(0) // เพิ่มทุกครั้งที่เปลี่ยนรหัสผ่าน → session เก่าทุกเครื่องใช้ไม่ได้
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
