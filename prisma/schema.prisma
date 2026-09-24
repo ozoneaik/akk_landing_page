@@ -1,0 +1,82 @@
+// โครงสร้างฐานข้อมูลของหลังบ้าน
+// หมายเหตุ: ค่า provider ด้านล่างถูกตั้งอัตโนมัติจาก DATABASE_URL โดย scripts/sync-db-provider.mjs
+//          (file: → sqlite, postgres:// → postgresql, mysql:// → mysql) ไม่ต้องแก้เอง
+//          ฟิลด์ที่มีคอมเมนต์ "// long" จะได้ @db.Text อัตโนมัติบน PostgreSQL/MySQL (SQLite ไม่รองรับ)
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ข้อมูลร้าน (มีแถวเดียว id = 1)
+model SiteSetting {
+  id          Int      @id @default(1)
+  name        String
+  tagline     String
+  description String // long
+  phone       String
+  address     String // long
+  hours       String
+  updatedAt   DateTime @updatedAt
+}
+
+model Product {
+  id          Int      @id @default(autoincrement())
+  name        String
+  category    String
+  description String // long
+  price       Int // ราคาเริ่มต้น (บาท)
+  unit        String
+  tag         String?
+  theme       String   @default("chemical") // ภาพจำลองเมื่อไม่มีรูป: chemical | fertilizer | tools
+  imageId     Int?
+  image       Upload?  @relation(fields: [imageId], references: [id], onDelete: SetNull)
+  imageUrl    String? // long — ลิงก์รูปภายนอก (ใช้เมื่อไม่ได้อัปโหลด)
+  orderUrl    String? // long — ลิงก์ปุ่ม "สั่งซื้อ" เฉพาะสินค้านี้ (ว่าง = ใช้ Shopee ของร้าน)
+  detailUrl   String? // long — ลิงก์ปุ่ม "ดูรายละเอียด" เฉพาะสินค้านี้ (ว่าง = ใช้ LINE ของร้าน)
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive, sortOrder])
+}
+
+// ช่องทางสั่งซื้อ / โซเชียลมีเดีย
+model Channel {
+  id        Int      @id @default(autoincrement())
+  platform  String // shopee | lazada | line | facebook | tiktok | youtube | instagram | website
+  name      String
+  label     String
+  detail    String
+  href      String // long
+  badge     String?
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, sortOrder])
+}
+
+// รูปที่อัปโหลด เก็บในฐานข้อมูล เพื่อให้ย้ายฐานข้อมูล/ย้ายเซิร์ฟเวอร์ได้โดยรูปไม่หาย
+model Upload {
+  id        Int       @id @default(autoincrement())
+  mimeType  String
+  size      Int
+  data      Bytes
+  createdAt DateTime  @default(now())
+  products  Product[]
+}
+
+model AdminUser {
+  id           Int      @id @default(autoincrement())
+  username     String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
